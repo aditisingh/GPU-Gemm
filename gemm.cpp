@@ -57,7 +57,7 @@ int main(int argc, char* argv[])
 	matrix M_A;
 	infile_A.read(reinterpret_cast<char*>(&M_A),2*sizeof(unsigned int));
 	//cout<<M_A.rows<<M_A.cols;
-
+	
 	float* array_A=(float*)malloc(M_A.rows*M_A.cols*sizeof(float));	//column major
 	infile_A.read(reinterpret_cast<char*>(array_A),M_A.rows*M_A.cols);
 	
@@ -84,6 +84,13 @@ int main(int argc, char* argv[])
 
 	for(int i=0; i<M_A.rows*M_B.cols;i++)
 		cout<<array_C[i]<<" ";
-	
+
+	//SAVING THE OUTPUT MATRIX
+	ofstream ofile(argv[3], ios::binary);
+
+	ofile.write((char*) &M_A.rows, sizeof(unsigned int));
+	ofile.write((char*) &M_B.cols, sizeof(unsigned int));	
+	ofile.write((char*) array_C , M_A.rows*M_B.cols*sizeof(float))	;
+
 	return 0;
 }
