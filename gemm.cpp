@@ -16,36 +16,74 @@ struct matrix{
 	unsigned int cols;
 };
 
+float* matrix_mult(float* array1, unsigned int rows1, unsigned int cols1, float* array2, unsigned int rows2, unsigned int cols2)
+{
+	float* C=(float*)malloc(rows1*cols2*sizeof(float));
+	
+	//initailize the array to zero
+	for(int idx=0; idx<rows1*cols2;idx++)
+	{
+		C[idx]=0;
+		int c=(int)(idx/rows1);
+		int r=idx%rows1;
+
+		for(int k=0;k<rows2;k++)
+		{
+			C[idx]+=array1[rows1*k+r]*array2[rows2*c+k];
+		}
+
+	}	
+	
+	return C;
+
+}
+
 int main(int argc, char* argv[])
 {
 	if(argc != 4) //there should be four arguments
 	return 1; //exit and return an error
 
 	ifstream infile_A, infile_B;	//reading the input matrices
-	//reading file A size
 	
+	
+	//READING matrix A
 	infile_A.open(argv[1],ios::binary|ios::in|ios::ate);
 	
-	//get length of file
+	//getting end and beginning of the file
 	infile_A.seekg(0,ios::end);
 	infile_A.seekg(0,ios::beg);
 	
 	//memory allocation
-	matrix M;
-	infile_A.read(reinterpret_cast<char*>(&M),2*sizeof(unsigned int));
-	cout<<M.rows<<M.cols;
+	matrix M_A;
+	infile_A.read(reinterpret_cast<char*>(&M_A),2*sizeof(unsigned int));
+	//cout<<M_A.rows<<M_A.cols;
 
-	float* array_A=(float*)malloc(M.rows*M.cols*sizeof(float));
-	infile_A.read(reinterpret_cast<char*>(array_A),M.rows*M.cols);
+	float* array_A=(float*)malloc(M_A.rows*M_A.cols*sizeof(float));	//column major
+	infile_A.read(reinterpret_cast<char*>(array_A),M_A.rows*M_A.cols);
 	
 	infile_A.close();
 
-
-	for(int i=0; i<M.rows*M.cols;i++)
-		cout<<array_A[i]<<" ";
+	//READING matrix B
+	infile_B.open(argv[1],ios::binary|ios::in|ios::ate);
 	
-	infile_A.close();
-		
+	//getting end and beginning of the file
+	infile_B.seekg(0,ios::end);
+	infile_B.seekg(0,ios::beg);
+	
+	//memory allocation
+	matrix M_B;
+	infile_B.read(reinterpret_cast<char*>(&M_B),2*sizeof(unsigned int));
+	//cout<<M_B.rows<<M_B.cols;
+
+	float* array_B=(float*)malloc(M_B.rows*M_B.cols*sizeof(float));	//column major
+	infile_B.read(reinterpret_cast<char*>(array_B),M_B.rows*M_B.cols);
+	
+	infile_B.close();
+
+	float* array_C=matrix_mult(array_A,M_A.rows,M_A.cols,array_B,M_B.rows,M_B.cols);
+
+	for(int i=0; i<M_A.rows*M_B.cols;i++)
+		cout<<array_C[i]<<" ";
 	
 	return 0;
 }
