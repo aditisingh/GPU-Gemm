@@ -22,37 +22,30 @@ int main(int argc, char* argv[])
 	return 1; //exit and return an error
 
 	ifstream infile_A, infile_B;	//reading the input matrices
-	int length_A;
 	//reading file A size
 	
 	infile_A.open(argv[1],ios::binary|ios::in|ios::ate);
 	
 	//get length of file
 	infile_A.seekg(0,ios::end);
-	length_A=infile_A.tellg();
 	infile_A.seekg(0,ios::beg);
 	
 	//memory allocation
 	matrix M;
-	/*(cout<<length_A;
-	vector<float> buffer((length_A*sizeof(char)-2*sizeof(unsigned int))/sizeof(float));
-
-	size_t size=(length_A*sizeof(char)-2*sizeof(unsigned int));
-	cout<<" "<<size<<" ";
-	infile_A.read(&buffer[0],size/sizeof(float));
-	
-	cout<<buffer[0];*/
-	//read data as block
-	infile_A.read(reinterpret_cast<char*>(&M),8);
+	infile_A.read(reinterpret_cast<char*>(&M),2*sizeof(unsigned int));
 	cout<<M.rows<<M.cols;
 
-	float* array=(float*)malloc(M.rows*M.cols*sizeof(float));
-	//cout<<M.array;
-	//infile_A.close();
+	float* array_A=(float*)malloc(M.rows*M.cols*sizeof(float));
+	infile_A.read(reinterpret_cast<char*>(array_A),M.rows*M.cols);
 	
-	//cout.write((char*)buffer,length_A-1);
+	infile_A.close();
+
+
+	for(int i=0; i<M.rows*M.cols;i++)
+		cout<<array_A[i]<<" ";
 	
-	//delete[] buffer;	
+	infile_A.close();
+		
 	
 	return 0;
 }
