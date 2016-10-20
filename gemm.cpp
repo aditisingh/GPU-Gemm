@@ -7,10 +7,14 @@
 #include <math.h>
 #include <time.h>
 #include <ctime>
+#include <vector>
 
 using namespace std;
 
-
+struct matrix{
+	unsigned int rows;
+	unsigned int cols;
+};
 
 int main(int argc, char* argv[])
 {
@@ -18,27 +22,37 @@ int main(int argc, char* argv[])
 	return 1; //exit and return an error
 
 	ifstream infile_A, infile_B;	//reading the input matrices
+	int length_A;
+	//reading file A size
 	
-	//reading matrix A
-	infile_A.open(argv[1]);
-	string line;
+	infile_A.open(argv[1],ios::binary|ios::in|ios::ate);
 	
-	int count=0;
-	int len=0;
-	while(getline(infile_A,line)){
-		len+=line.length();
-		cout<<line.length()<<endl;;
-		for (int i=0; i<=line.length();i++)
-		{
-			float val=line[i];
-			cout<<val<<" ";
-			count++;
-		}
-		cout<<endl<<endl;
-	}
+	//get length of file
+	infile_A.seekg(0,ios::end);
+	length_A=infile_A.tellg();
+	infile_A.seekg(0,ios::beg);
 	
-	cout<<"count="<<count<<" ";
-	cout<<"len="<<len;
+	//memory allocation
+	matrix M;
+	/*(cout<<length_A;
+	vector<float> buffer((length_A*sizeof(char)-2*sizeof(unsigned int))/sizeof(float));
 
+	size_t size=(length_A*sizeof(char)-2*sizeof(unsigned int));
+	cout<<" "<<size<<" ";
+	infile_A.read(&buffer[0],size/sizeof(float));
+	
+	cout<<buffer[0];*/
+	//read data as block
+	infile_A.read(reinterpret_cast<char*>(&M),8);
+	cout<<M.rows<<M.cols;
+
+	float* array=(float*)malloc(M.rows*M.cols*sizeof(float));
+	//cout<<M.array;
+	//infile_A.close();
+	
+	//cout.write((char*)buffer,length_A-1);
+	
+	//delete[] buffer;	
+	
 	return 0;
 }
