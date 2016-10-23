@@ -8,6 +8,7 @@
 #include <time.h>
 #include <ctime>
 #include <vector>
+#include <ctime>
 
 using namespace std;
 
@@ -42,6 +43,8 @@ int main(int argc, char* argv[])
 {
 	if(argc != 4) //there should be four arguments
 	return 1; //exit and return an error
+
+	time_t reading_start=time(NULL);
 
 	ifstream infile_A, infile_B;	//reading the input matrices
 	
@@ -80,10 +83,14 @@ int main(int argc, char* argv[])
 	
 	infile_B.close();
 
+	time_t reading_end = time(NULL);
+
 	float* array_C=matrix_mult(array_A,M_A.rows,M_A.cols,array_B,M_B.rows,M_B.cols);
 
-	for(int i=0; i<M_A.rows*M_B.cols;i++)
-		cout<<array_C[i]<<" ";
+	// for(int i=0; i<M_A.rows*M_B.cols;i++)
+		// cout<<array_C[i]<<" ";
+
+	time_t mult_end = time(NULL);
 
 	//SAVING THE OUTPUT MATRIX
 	ofstream ofile(argv[3], ios::binary);
@@ -91,6 +98,12 @@ int main(int argc, char* argv[])
 	ofile.write((char*) &M_A.rows, sizeof(unsigned int));
 	ofile.write((char*) &M_B.cols, sizeof(unsigned int));	
 	ofile.write((char*) array_C , M_A.rows*M_B.cols*sizeof(float))	;
+
+	time_t saved = time(NULL);
+
+	cout<<"Matrix reading     :"<<double(reading_end - reading_start)<<" secs"<<endl;
+	cout<<"Multiplication done:"<<double(mult_end - reading_end)<<" secs"<<endl;
+	cout<<"Matrix saving      :"<<double(saved - mult_end)<<" secs"<<endl;
 
 	return 0;
 }
