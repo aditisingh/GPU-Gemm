@@ -142,9 +142,14 @@ int main(int argc, char* argv[])
 
 	
 
-	for(int i=0; i<M_A.rows*M_B.cols;i++)
-		cout<<array_C[i]<<" ";
+	//for(int i=0; i<M_A.rows*M_B.cols;i++)
+	//	cout<<array_C[i]<<" ";
+	
 
+	//DOING IT USING THE cuBLAS
+	cublasHandle_t handle;
+	cublasCreate(&handle); //initilaize cuBLAS
+	cublasSgemm(handle, 
 
 	//SAVING THE OUTPUT MATRIX
 	ofstream ofile(argv[3], ios::binary);
@@ -162,3 +167,4 @@ int main(int argc, char* argv[])
 
 	return 0;
 }
+
