@@ -1,3 +1,4 @@
+
 #include <fstream>
 #include <iostream>
 #include <stdio.h>
@@ -10,6 +11,7 @@
 #include <vector>
 #include <cuda.h>
 #include <cuda_runtime_api.h>
+#include <cublas.h>
 
 using namespace std;
 
@@ -94,9 +96,11 @@ int main(int argc, char* argv[])
 	
 	infile_B.close();
 
-	float* array_C=(float*)malloc(M_A.rows*M_B.cols*sizeof(float));
+	float* array_C=(float*)malloc(M_A.rows*M_B.cols*sizeof(float));//gpu result
+	
+	float* array_D=(float*)malloc(M_A.rows*M_B.cols*sizeof(float));//cublas result
 
-
+	
 	time_t reading_end = time(NULL);
 
 
@@ -108,18 +112,21 @@ int main(int argc, char* argv[])
    	HANDLE_ERROR(cudaGetDeviceProperties(&prop, 0));	//using GPU0
 
    	//BLOCK AND GRID SIZE
-    float thread_block=sqrt(prop.maxThreadsPerBlock);
+        float thread_block=sqrt(prop.maxThreadsPerBlock);
 	dim3 DimGrid(ceil(M_B.cols/thread_block),ceil(M_A.rows/thread_block),1); //image saved as a 2D grid
 	dim3 DimBlock(thread_block,thread_block,1);
 
 	//GPU MEMORY ALLOCATION
-	float *array_A_gpu, *array_B_gpu, *array_C_gpu;
+	float *array_A_gpu, *array_B_gpu, *array_C_gpu, *array_D_gpu;
    
 	HANDLE_ERROR(cudaMalloc(&array_A_gpu,M_A.rows*M_A.cols*sizeof(float))); //allocate space to store convolution result
 
 	HANDLE_ERROR(cudaMalloc(&array_B_gpu,M_B.rows*M_B.cols*sizeof(float))); //allocate space to store convolution temporary
 
 	HANDLE_ERROR(cudaMalloc(&array_C_gpu,M_A.rows*M_B.cols*sizeof(float))); //allocate space to copy image to GPU memory
+
+	HANDLE_ERROR(cudaMalloc(&array_D_gpu,M_A.rows*M_B.cols*sizeof(float))); //allocate space to copy image to GPU memory
+
 	
 
 	//COPY TO GPU MEMORY
@@ -128,6 +135,8 @@ int main(int argc, char* argv[])
 	HANDLE_ERROR(cudaMemcpy(array_B_gpu, array_B, M_B.rows*M_B.cols*sizeof(float), cudaMemcpyHostToDevice));//copy the kernel0 host to device
 
 	HANDLE_ERROR(cudaMemcpy(array_C_gpu, array_C, M_A.rows*M_B.cols*sizeof(float), cudaMemcpyHostToDevice));//copy kernel1 host to device
+
+	HANDLE_ERROR(cudaMemcpy(array_D_gpu, array_D, M_A.rows*M_B.cols*sizeof(float), cudaMemcpyHostToDevice));//copy kernel1 host to device
 
 	time_t memory_transfers=time(NULL);
 
@@ -140,16 +149,22 @@ int main(int argc, char* argv[])
 	//copy to CPU MEMORY
 	HANDLE_ERROR(cudaMemcpy(array_C, array_C_gpu, M_A.rows*M_B.cols*sizeof(float), cudaMemcpyDeviceToHost));//copy kernel1 host to device
 
-	
-
-	//for(int i=0; i<M_A.rows*M_B.cols;i++)
-	//	cout<<array_C[i]<<" ";
-	
-
-	//DOING IT USING THE cuBLAS
+	//Creating handle for CUBLAS
 	cublasHandle_t handle;
-	cublasCreate(&handle); //initilaize cuBLAS
-	cublasSgemm(handle, 
+	cublasCreate(&handle);	
+
+	float alpha = 1.0;
+	float beta = 1.0;
+
+	cublasSegmm(handle, CUBLAS_OP_N, CUBLAS_OP_N, M_A.rows, M_B.cols, M_A.cols, &alpha, array_A_gpu, M_A.rows, array_B_gpu, M_B.rows, &beta, array_D_gpu, M_A.rows);
+
+	//copy to CPU MEMORY
+        HANDLE_ERROR(cudaMemcpy(array_D, array_D_gpu, M_A.rows*M_B.cols*sizeof(float), cudaMemcpyDeviceToHost));//copy kernel1 host to device
+
+	
+	for(int i=0; i<M_A.rows*M_B.cols;i++)
+		cout<<array_C[i]<<" "<<array_D[i]<<"          ";
+
 
 	//SAVING THE OUTPUT MATRIX
 	ofstream ofile(argv[3], ios::binary);
@@ -167,4 +182,3 @@ int main(int argc, char* argv[])
 
 	return 0;
 }
-
