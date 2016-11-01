@@ -9,12 +9,10 @@
 #include <ctime>
 #include <vector>
 #include <cuda.h>
-//#include <chrono>
 #include <cuda_runtime_api.h>
 #include <cublas_v2.h>
 
-//using namespace std;
-using namespace chrono;
+using namespace std;
 
 struct matrix{
 	unsigned int rows;
@@ -140,38 +138,36 @@ int main(int argc, char* argv[])
 	HANDLE_ERROR(cudaMemcpy(array_D_gpu, array_D, M_A.rows*M_B.cols*sizeof(float), cudaMemcpyHostToDevice));//copy kernel1 host to device
 
 	time_t memory_transfers=time(NULL);
-    //std::chrono::high_resolution_clock::time_point start, stop;
-    //start = std::chrono::high_resolution_clock::now();
+
 	//MATRIX MULTIPLICATION
 
 	matrix_mult<<<DimGrid,DimBlock>>>(array_A_gpu,M_A.rows,M_A.cols,array_B_gpu,M_B.rows,M_B.cols,array_C_gpu);
 
-	//stop = std::chrono::high_resoultion::time_point::now();
+
 	time_t mult_end = time(NULL);
-	//std::chrono::milliseconds d;
-    //d = std::chrono::duration_cast<std::chrono::milliseconds>(end – start);
-   	//cout<<“funcCall():    ”<<d.count()<<“ms”<<endl;
 
 
 	//copy to CPU MEMORY
 	HANDLE_ERROR(cudaMemcpy(array_C, array_C_gpu, M_A.rows*M_B.cols*sizeof(float), cudaMemcpyDeviceToHost));//copy kernel1 host to device
 
 	//Creating handle for CUBLAS
-	//cublasHandle_t handle;
-	//cublasCreate(&handle);	
+	cublasHandle_t handle;
+	cublasCreate(&handle);	
 
 	float alpha = 1.0;
 	float beta = 1.0;
 
-	//cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, M_A.rows, M_B.cols, M_A.cols, &alpha, array_A_gpu, M_A.rows, array_B_gpu, M_B.rows, &beta, array_D_gpu, M_A.rows);
+	cublasSgemm(handle, CUBLAS_OP_T, CUBLAS_OP_T, M_A.rows, M_B.cols, M_A.cols, &alpha, array_A_gpu, M_A.rows, array_B_gpu, M_B.rows, &beta, array_D_gpu, M_A.rows);
 
 	//copy to CPU MEMORY
-      //  HANDLE_ERROR(cudaMemcpy(array_D, array_D_gpu, M_A.rows*M_B.cols*sizeof(float), cudaMemcpyDeviceToHost));//copy kernel1 host to device
+        HANDLE_ERROR(cudaMemcpy(array_D, array_D_gpu, M_A.rows*M_B.cols*sizeof(float), cudaMemcpyDeviceToHost));//copy kernel1 host to device
 
-	
+	float mse=0; //mean squared error
+
 	for(int i=0; i<M_A.rows*M_B.cols;i++)
-		cout<<array_C[i]<<" "<<array_D[i]<<"          ";
+		mse=mse+(array_C[i]-array_D[i])*(array_C[i]-array_D[i]);
 
+	cout<<"Mean square error = "<<mse<<endl;
 
 	//SAVING THE OUTPUT MATRIX
 	ofstream ofile(argv[3], ios::binary);
