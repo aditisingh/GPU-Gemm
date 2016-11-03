@@ -70,7 +70,7 @@ int main(int argc, char* argv[])
 	infile_A.seekg(0,ios::beg);
 	
 	//memory allocation
-	matrix M_A;
+	matrix M_A;	
 	infile_A.read(reinterpret_cast<char*>(&M_A),2*sizeof(unsigned int));
 	//cout<<M_A.rows<<M_A.cols;
 	
@@ -99,6 +99,8 @@ int main(int argc, char* argv[])
 	
 	float* array_D=(float*)malloc(M_A.rows*M_B.cols*sizeof(float));//cublas result
 
+	//for(int i=0; i<M_A.rows*M_A.cols;i++)
+	//	cout<<array_A[i]<<" "<<array_B[i]<<" ";
 	
 	time_t reading_end = time(NULL);
 
@@ -155,7 +157,7 @@ int main(int argc, char* argv[])
 	cublasCreate(&handle);	
 
 	float alpha = 1.0;
-	float beta = 1.0;
+	float beta = 0.0;
 
 	cublasSgemm(handle, CUBLAS_OP_T, CUBLAS_OP_T, M_A.rows, M_B.cols, M_A.cols, &alpha, array_A_gpu, M_A.rows, array_B_gpu, M_B.rows, &beta, array_D_gpu, M_A.rows);
 
@@ -165,16 +167,14 @@ int main(int argc, char* argv[])
 	float mse=0; //mean squared error
 
 	for(int i=0; i<M_A.rows*M_B.cols;i++)
-	{
+		{
 		mse=mse+(array_C[i]-array_D[i])*(array_C[i]-array_D[i]);
-		int diff=array_C[i]-array_D[i];
-		cout<<diff<<" "<<array_C[i]<<" "<<array_D[i]<<"               ";
-	}
+		float diff=array_C[i]-array_D[i];
+		//cout<<diff<<" ";//
+		cout<<array_C[i]<<" "<<array_D[i]<<endl;
+		}
 
-	//for(int i=0;i<M_A.rows*M_A.cols;i++)
-	//cout<<array_A[i]<<" ";
-
-	cout<<"Mean square error = "<<mse<<endl;
+	cout<<endl<<"Mean square error = "<<mse<<endl;
 
 	//SAVING THE OUTPUT MATRIX
 	ofstream ofile(argv[3], ios::binary);
