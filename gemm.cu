@@ -165,11 +165,14 @@ int main(int argc, char* argv[])
 	float mse=0; //mean squared error
 
 	for(int i=0; i<M_A.rows*M_B.cols;i++)
-		{
+	{
 		mse=mse+(array_C[i]-array_D[i])*(array_C[i]-array_D[i]);
 		int diff=array_C[i]-array_D[i];
-		cout<<diff<<" ";
-		}
+		cout<<diff<<" "<<array_C[i]<<" "<<array_D[i]<<"               ";
+	}
+
+	//for(int i=0;i<M_A.rows*M_A.cols;i++)
+	//cout<<array_A[i]<<" ";
 
 	cout<<"Mean square error = "<<mse<<endl;
 
