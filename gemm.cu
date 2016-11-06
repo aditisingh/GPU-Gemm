@@ -33,23 +33,32 @@ __global__ void matrix_mult(float* array1, unsigned int rows1, unsigned int cols
 {
 	 extern __shared__ unsigned char S[];			//defined a shared memory pointer
 
+	
 	//float* array3=(float*)malloc(rows1*cols2*sizeof(float));
 	
 	size_t c=blockIdx.x*blockDim.x + threadIdx.x;
 	size_t r=blockIdx.y*blockDim.y + threadIdx.y;
 
-	size_t idx=r*rows1+c;
+
 
 	//initailize the array to zero
-	if(idx<rows1*cols2)
-	{
-		array3[idx]=0;
-		#pragma unroll 16
+	if(r<rows1){
+		if(c<cols2){
+		size_t idx=c*cols2+r;	//going columnwise
+		size_t C1=rows2*c;
+		// array3[idx]=0;
+		float val=0;
+		#pragma unroll 8
 		for(int k=0;k<rows2;k++)
 		{
-			array3[idx]+=array1[rows1*k+r]*array2[rows2*c+k];
+			val+=array1[rows1*k+r]*array2[C1+k];
 		}
-	}	
+		array3[idx]=val;
+	}
+	}
+	else{
+		return;
+	}
 	
 	//return C;
 
@@ -77,6 +86,8 @@ int main(int argc, char* argv[])
 	infile_A.read(reinterpret_cast<char*>(&M_A),2*sizeof(unsigned int));
 	//cout<<M_A.rows<<M_A.cols;
 	
+	//matrix M_A,M_B;
+
 	float* array_A=(float*)malloc(M_A.rows*M_A.cols*sizeof(float));	//column major
 	infile_A.read(reinterpret_cast<char*>(array_A),M_A.rows*M_A.cols*sizeof(float));
 	
@@ -94,6 +105,16 @@ int main(int argc, char* argv[])
 	infile_B.read(reinterpret_cast<char*>(&M_B),2*sizeof(unsigned int));
 
 	float* array_B=(float*)malloc(M_B.rows*M_B.cols*sizeof(float));	//column major
+
+/*	array_A[0]=1, array_A[3]=2, array_A[6]=1;
+	array_A[1]=2, array_A[4]=3, array_A[7]=4;
+	array_A[2]=1, array_A[5]=-1, array_A[8]=0;
+
+	array_B[0]=0, array_B[3]=1, array_B[6]=0;
+	array_B[1]=1, array_B[4]=2, array_B[7]=3;
+	array_B[2]=-1, array_B[5]=2, array_B[8]=-1;
+
+	*/
 	infile_B.read(reinterpret_cast<char*>(array_B),M_B.rows*M_B.cols*sizeof(float));
 	
 	infile_B.close();
@@ -182,7 +203,7 @@ int main(int argc, char* argv[])
 	cudaEventCreate(&stop2);
 
 	cudaEventRecord(start2);
-	cublasSgemm(handle, CUBLAS_OP_T, CUBLAS_OP_T, M_A.rows, M_B.cols, M_A.cols, &alpha, array_A_gpu, M_A.rows, array_B_gpu, M_B.rows, &beta, array_D_gpu, M_A.rows);
+	cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, M_A.rows, M_B.cols, M_A.cols, &alpha, array_A_gpu, M_A.rows, array_B_gpu, M_B.rows, &beta, array_D_gpu, M_A.rows);
 	cudaEventRecord(stop2);
 
 	cudaEventSynchronize(stop2);
@@ -199,9 +220,9 @@ int main(int argc, char* argv[])
 	for(int i=0; i<M_A.rows*M_B.cols;i++)
 		{
 		mse=mse+(array_C[i]-array_D[i])*(array_C[i]-array_D[i]);
-		float diff=array_C[i]-array_D[i];
+		//float diff=array_C[i]-array_D[i];
 		//cout<<diff<<" ";//
-		//cout<<array_A[i]<<" ";//<<" "<<array_D[i]<<endl;
+		//cout<<array_C[i]<<" "<<" "<<array_D[i]<<endl;
 		}
 
 	cout<<endl<<"Mean square error = "<<mse<<endl;
