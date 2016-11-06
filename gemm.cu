@@ -31,6 +31,8 @@ static void HandleError( cudaError_t err, const char *file, int line ) {
 
 __global__ void matrix_mult(float* array1, unsigned int rows1, unsigned int cols1, float* array2, unsigned int rows2, unsigned int cols2, float* array3)
 {
+	 extern __shared__ unsigned char S[];			//defined a shared memory pointer
+
 	//float* array3=(float*)malloc(rows1*cols2*sizeof(float));
 	
 	size_t c=blockIdx.x*blockDim.x + threadIdx.x;
@@ -42,6 +44,7 @@ __global__ void matrix_mult(float* array1, unsigned int rows1, unsigned int cols
 	if(idx<rows1*cols2)
 	{
 		array3[idx]=0;
+		#pragma unroll 16
 		for(int k=0;k<rows2;k++)
 		{
 			array3[idx]+=array1[rows1*k+r]*array2[rows2*c+k];
@@ -75,7 +78,7 @@ int main(int argc, char* argv[])
 	//cout<<M_A.rows<<M_A.cols;
 	
 	float* array_A=(float*)malloc(M_A.rows*M_A.cols*sizeof(float));	//column major
-	infile_A.read(reinterpret_cast<char*>(array_A),M_A.rows*M_A.cols);
+	infile_A.read(reinterpret_cast<char*>(array_A),M_A.rows*M_A.cols*sizeof(float));
 	
 	infile_A.close();
 
@@ -91,16 +94,19 @@ int main(int argc, char* argv[])
 	infile_B.read(reinterpret_cast<char*>(&M_B),2*sizeof(unsigned int));
 
 	float* array_B=(float*)malloc(M_B.rows*M_B.cols*sizeof(float));	//column major
-	infile_B.read(reinterpret_cast<char*>(array_B),M_B.rows*M_B.cols);
+	infile_B.read(reinterpret_cast<char*>(array_B),M_B.rows*M_B.cols*sizeof(float));
 	
 	infile_B.close();
+
+	if(M_A.cols!=M_B.rows)
+	{
+		cout<<"Illegal matrix sizes: "<<M_A.cols<<" != "<<M_B.rows<<endl;
+		return 1;
+	}
 
 	float* array_C=(float*)malloc(M_A.rows*M_B.cols*sizeof(float));//gpu result
 	
 	float* array_D=(float*)malloc(M_A.rows*M_B.cols*sizeof(float));//cublas result
-
-	//for(int i=0; i<M_A.rows*M_A.cols;i++)
-	//	cout<<array_A[i]<<" "<<array_B[i]<<" ";
 	
 	time_t reading_end = time(NULL);
 
@@ -141,13 +147,24 @@ int main(int argc, char* argv[])
 
 	time_t memory_transfers=time(NULL);
 
+	//time measurement
+	cudaEvent_t start1, stop1;
+ 	
+ 	cudaEventCreate(&start1);
+	cudaEventCreate(&stop1);
+	
 	//MATRIX MULTIPLICATION
-
+	cudaEventRecord(start1);
 	matrix_mult<<<DimGrid,DimBlock>>>(array_A_gpu,M_A.rows,M_A.cols,array_B_gpu,M_B.rows,M_B.cols,array_C_gpu);
-
+	cudaEventRecord(stop1);
 
 	time_t mult_end = time(NULL);
 
+	cudaEventSynchronize(stop1);
+	float milliseconds1 = 0, milliseconds2 = 0;
+	
+	cudaEventElapsedTime(&milliseconds1, start1, stop1);
+	cout<<"time taken by GPU = "<<milliseconds1<<" ms"<<endl;
 
 	//copy to CPU MEMORY
 	HANDLE_ERROR(cudaMemcpy(array_C, array_C_gpu, M_A.rows*M_B.cols*sizeof(float), cudaMemcpyDeviceToHost));//copy kernel1 host to device
@@ -158,11 +175,24 @@ int main(int argc, char* argv[])
 
 	float alpha = 1.0;
 	float beta = 0.0;
+    
+    cudaEvent_t start2, stop2;
+ 	
+ 	cudaEventCreate(&start2);
+	cudaEventCreate(&stop2);
 
+	cudaEventRecord(start2);
 	cublasSgemm(handle, CUBLAS_OP_T, CUBLAS_OP_T, M_A.rows, M_B.cols, M_A.cols, &alpha, array_A_gpu, M_A.rows, array_B_gpu, M_B.rows, &beta, array_D_gpu, M_A.rows);
+	cudaEventRecord(stop2);
 
+	cudaEventSynchronize(stop2);
+
+	cudaEventElapsedTime(&milliseconds2, start2, stop2);
+	cout<<"time taken by CUBLAS= "<<milliseconds2<<" ms"<<endl;
+	
 	//copy to CPU MEMORY
-        HANDLE_ERROR(cudaMemcpy(array_D, array_D_gpu, M_A.rows*M_B.cols*sizeof(float), cudaMemcpyDeviceToHost));//copy kernel1 host to device
+    
+    HANDLE_ERROR(cudaMemcpy(array_D, array_D_gpu, M_A.rows*M_B.cols*sizeof(float), cudaMemcpyDeviceToHost));//copy kernel1 host to device
 
 	float mse=0; //mean squared error
 
@@ -171,7 +201,7 @@ int main(int argc, char* argv[])
 		mse=mse+(array_C[i]-array_D[i])*(array_C[i]-array_D[i]);
 		float diff=array_C[i]-array_D[i];
 		//cout<<diff<<" ";//
-		cout<<array_C[i]<<" "<<array_D[i]<<endl;
+		//cout<<array_A[i]<<" ";//<<" "<<array_D[i]<<endl;
 		}
 
 	cout<<endl<<"Mean square error = "<<mse<<endl;
@@ -185,10 +215,10 @@ int main(int argc, char* argv[])
 
 	time_t saved = time(NULL);
 
-	cout<<"Matrix reading     :"<<double(reading_end - reading_start)<<" secs"<<endl;
-	cout<<"Memory Transfers   :"<<double(memory_transfers - reading_end)<<" secs"<<endl;
-	cout<<"Multiplication done:"<<double(mult_end - memory_transfers)<<" secs"<<endl;
-	cout<<"Matrix saving      :"<<double(saved - mult_end)<<" secs"<<endl;
+	//cout<<"Matrix reading     :"<<double(reading_end - reading_start)<<" secs"<<endl;
+	//cout<<"Memory Transfers   :"<<double(memory_transfers - reading_end)<<" secs"<<endl;
+	//cout<<"Multiplication done:"<<double(mult_end - memory_transfers)<<" secs"<<endl;
+	//cout<<"Matrix saving      :"<<double(saved - mult_end)<<" secs"<<endl;
 
 	return 0;
 }
