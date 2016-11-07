@@ -43,16 +43,10 @@ __global__ void matrix_mult(float* array1, unsigned int rows1, unsigned int cols
 	
 	float val=0;
 
-	for(int i=0; i<rows1*cols1;i++)
-		S[i]=array1[i];
-
-	for(int i=0; i<rows2*cols2;i++)
-		S[i+rows1*cols1]=array2[i];
-
 	#pragma unroll 8
 	for(int k=0;k<rows2;k++)
 	{
-		val+=S[rows1*k+r]*S[rows1*cols1+C1+k];
+		val+=array1[rows1*k+r]*array2[C1+k];
 	}
 	array3[idx]=val;
 
