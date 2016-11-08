@@ -31,24 +31,36 @@ static void HandleError( cudaError_t err, const char *file, int line ) {
 
 __global__ void matrix_mult(float* array1, unsigned int rows1, unsigned int cols1, float* array2, unsigned int rows2, unsigned int cols2, float* array3)
 {
-	 extern __shared__ float S[];			//defined a shared memory pointer
+	 extern __shared__ unsigned char S[];			//defined a shared memory pointer
+
+	
+	//float* array3=(float*)malloc(rows1*cols2*sizeof(float));
 	
 	size_t c=blockIdx.x*blockDim.x + threadIdx.x;
 	size_t r=blockIdx.y*blockDim.y + threadIdx.y;
 
-	if(r>=rows1 || c>=cols2) return;
 
-	size_t idx=c*cols2+r;	//going columnwise
-	size_t C1=rows2*c;
-	
-	float val=0;
 
-	#pragma unroll 8
-	for(int k=0;k<rows2;k++)
-	{
-		val+=array1[rows1*k+r]*array2[C1+k];
+	//initailize the array to zero
+	if(r<rows1){
+		if(c<cols2){
+		size_t idx=c*cols2+r;	//going columnwise
+		size_t C1=rows2*c;
+		// array3[idx]=0;
+		float val=0;
+		#pragma unroll 8
+		for(int k=0;k<rows2;k++)
+		{
+			val+=array1[rows1*k+r]*array2[C1+k];
+		}
+		array3[idx]=val;
 	}
-	array3[idx]=val;
+	}
+	else{
+		return;
+	}
+	
+	//return C;
 
 }
 
@@ -71,18 +83,23 @@ int main(int argc, char* argv[])
 	
 	//memory allocation
 	matrix M_A;	
-	infile_A.read(reinterpret_cast<char*>(&M_A),2*sizeof(unsigned int));
+	unsigned int rA,cA;
+	infile_A.read(reinterpret_cast<char*>(&rA),sizeof(unsigned int));
+	M_A.rows=rA;
+	infile_A.read(reinterpret_cast<char*>(&cA),sizeof(unsigned int));
+	M_A.cols=cA;
+
 	//cout<<M_A.rows<<M_A.cols;
 	
 	//matrix M_A,M_B;
-
+	
 	float* array_A=(float*)malloc(M_A.rows*M_A.cols*sizeof(float));	//column major
 	infile_A.read(reinterpret_cast<char*>(array_A),M_A.rows*M_A.cols*sizeof(float));
 	
 	infile_A.close();
 
 	//READING matrix B
-	infile_B.open(argv[1],ios::binary|ios::in|ios::ate);
+	infile_B.open(argv[2],ios::binary|ios::in|ios::ate);
 	
 	//getting end and beginning of the file
 	infile_B.seekg(0,ios::end);
@@ -90,8 +107,11 @@ int main(int argc, char* argv[])
 	
 	//memory allocation
 	matrix M_B;
-	infile_B.read(reinterpret_cast<char*>(&M_B),2*sizeof(unsigned int));
-
+	unsigned int rB, cB;
+	infile_B.read(reinterpret_cast<char*>(&rB),sizeof(unsigned int));
+	M_B.rows=rB;
+	infile_B.read(reinterpret_cast<char*>(&cB),sizeof(unsigned int));
+	M_B.cols=cB;
 	float* array_B=(float*)malloc(M_B.rows*M_B.cols*sizeof(float));	//column major
 
 /*	array_A[0]=1, array_A[3]=2, array_A[6]=1;
@@ -103,10 +123,12 @@ int main(int argc, char* argv[])
 	array_B[2]=-1, array_B[5]=2, array_B[8]=-1;
 
 	*/
-
 	infile_B.read(reinterpret_cast<char*>(array_B),M_B.rows*M_B.cols*sizeof(float));
 	
 	infile_B.close();
+
+	cout<<"size of A= "<<M_A.rows<<" X "<<M_A.cols<<endl;
+	cout<<"size of B= "<<M_B.rows<<" X "<<M_B.cols<<endl;
 
 	if(M_A.cols!=M_B.rows)
 	{
@@ -129,18 +151,9 @@ int main(int argc, char* argv[])
    	HANDLE_ERROR(cudaGetDeviceProperties(&prop, 0));	//using GPU0
 
    	//BLOCK AND GRID SIZE
-    float thread_block=sqrt(prop.maxThreadsPerBlock);
+        float thread_block=sqrt(prop.maxThreadsPerBlock);
 	dim3 DimGrid(ceil(M_B.cols/thread_block),ceil(M_A.rows/thread_block),1); //image saved as a 2D grid
 	dim3 DimBlock(thread_block,thread_block,1);
-
-	size_t Sbytes = DimBlock.x * DimBlock.y * sizeof(float) * 2;
-
-	cudaDeviceProp props;
-	cudaGetDeviceProperties(&props, 0);
-	if(props.sharedMemPerBlock < Sbytes){
-		std::cout<<"ERROR: insufficient shared memory"<<std::endl;
-		exit(1);
-	}
 
 	//GPU MEMORY ALLOCATION
 	float *array_A_gpu, *array_B_gpu, *array_C_gpu, *array_D_gpu;
@@ -153,6 +166,7 @@ int main(int argc, char* argv[])
 
 	HANDLE_ERROR(cudaMalloc(&array_D_gpu,M_A.rows*M_B.cols*sizeof(float))); //allocate space to copy image to GPU memory
 
+	
 
 	//COPY TO GPU MEMORY
 	HANDLE_ERROR(cudaMemcpy(array_A_gpu, array_A, M_A.rows*M_A.cols*sizeof(float), cudaMemcpyHostToDevice));//copy input image from global to gpu
@@ -173,7 +187,7 @@ int main(int argc, char* argv[])
 	
 	//MATRIX MULTIPLICATION
 	cudaEventRecord(start1);
-	matrix_mult<<<DimGrid, DimBlock, Sbytes>>>(array_A_gpu,M_A.rows,M_A.cols,array_B_gpu,M_B.rows,M_B.cols,array_C_gpu);
+	matrix_mult<<<DimGrid,DimBlock>>>(array_A_gpu,M_A.rows,M_A.cols,array_B_gpu,M_B.rows,M_B.cols,array_C_gpu);
 	cudaEventRecord(stop1);
 
 	time_t mult_end = time(NULL);
@@ -219,7 +233,7 @@ int main(int argc, char* argv[])
 		mse=mse+(array_C[i]-array_D[i])*(array_C[i]-array_D[i]);
 		//float diff=array_C[i]-array_D[i];
 		//cout<<diff<<" ";//
-		// cout<<array_C[i]<<" "<<" "<<array_D[i]<<endl;
+		//cout<<array_C[i]<<" "<<" "<<array_D[i]<<endl;
 		}
 
 	cout<<endl<<"Mean square error = "<<mse<<endl;
