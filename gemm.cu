@@ -54,8 +54,8 @@
 
 		for(int m=0; m<cols2/TILE_WIDTH;m++)
 		{
-			S1[ty][tx]=array1[r*cols2 + (m*TILE_WIDTH+tx)];
-			S2[ty][tx]=array2[(m*TILE_WIDTH+ty)*cols2+c];
+			S1[ty][tx]=array1[r + (m*TILE_WIDTH+tx)*rows1];
+			S2[ty][tx]=array2[(m*TILE_WIDTH+ty)+cols2*c];
 			__syncthreads();
 
 			for(int i=0; i<TILE_WIDTH;i++)
@@ -245,7 +245,7 @@
 			mse=mse+(array_C[i]-array_D[i])*(array_C[i]-array_D[i]);
 			//float diff=array_C[i]-array_D[i];
 			//cout<<diff<<" ";//
-			cout<<array_A[i]<<" "<<array_B[i]<<" "<<array_C[i]<<" "<<" "<<array_D[i]<<endl;
+			// cout<<array_A[i]<<" "<<array_B[i]<<" "<<array_C[i]<<" "<<" "<<array_D[i]<<endl;
 			}
 
 		cout<<endl<<"Mean square error = "<<mse<<endl;
