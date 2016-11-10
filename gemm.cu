@@ -34,7 +34,7 @@
 		//each tile should fit the shared memory
 
 		const unsigned int TILE_WIDTH = 32;
-		const unsigned int TILE_HEIGHT= 32;
+		const unsigned int TILE_HEIGHT= 32;//32
 
 		__shared__ float S1[TILE_WIDTH][TILE_HEIGHT];
 		__shared__ float S2[TILE_HEIGHT][TILE_WIDTH];
@@ -63,6 +63,19 @@
 			__syncthreads();
 
 		}
+		
+		//for(int i=0;i<TILE_WIDTH;i++)
+		//{	
+		//	for(int j=0;j<TILE_HEIGHT;j++)
+		//	{	
+				//printf("S1 %d, S2 %d \t",S1[i][j],S2[i][j]);
+		//	}
+		//}
+	
+		//printf("\n");
+		//printf("%d,\t",S1[ty][tx]);
+		//printf("%d, \n",S2[ty][tx]);
+		
 		array3[idx]=val;
 
 	}
@@ -90,7 +103,7 @@
 		//cout<<M_A.rows<<M_A.cols;
 		
 		//matrix M_A,M_B;
-		// M_A.rows=3, M_A.cols=3;
+		// M_A.rows=4, M_A.cols=6;
 
 		float* array_A=(float*)malloc(M_A.rows*M_A.cols*sizeof(float));	//column major
 		infile_A.read(reinterpret_cast<char*>(array_A),M_A.rows*M_A.cols*sizeof(float));
@@ -108,7 +121,7 @@
 		matrix M_B;
 		infile_B.read(reinterpret_cast<char*>(&M_B),2*sizeof(unsigned int));
 
-		// M_B.rows=3, M_B.cols=3;
+		//M_B.rows=6, M_B.cols=4;
 
 		float* array_B=(float*)malloc(M_B.rows*M_B.cols*sizeof(float));	//column major
 
@@ -127,7 +140,20 @@
 		// array_B[0]=0, array_B[3]=1, array_B[6]=0;
 		// array_B[1]=1, array_B[4]=2, array_B[7]=3;
 		// array_B[2]=-1, array_B[5]=2, array_B[8]=-1;
+	
+	//array_A[0]=0, array_A[1]=2, array_A[2]=3, array_A[3]=0, array_A[4]=3, array_A[5]= 5;
+       //  	array_A[6]=1, array_A[7]=0, array_A[8]=4, array_A[9]=6, array_A[10]=7,array_A[11]=7;
+	//	array_A[12]=0, array_A[13]=2, array_A[14]=2, array_A[15]=3, array_A[16]=7,array_A[17]=0;
+  // 		array_A[18]=3, array_A[19]=0, array_A[20]=2, array_A[21]=1, array_A[22]=1,array_A[23]=5; 
+//
 
+	//	array_B[0]=1, array_B[1]=4, array_B[2]=5, array_B[3]=1; 	
+	  //      array_B[4]=8, array_B[5]=3, array_B[6]=2, array_B[7]=5;
+     		//array_B[8]=6, array_B[9]=2, array_B[10]=0,array_B[11]=1;
+	//	array_B[12]=4,array_B[13]=2,array_B[14]=8,array_B[15]=3;
+	//	array_B[16]=4,array_B[17]=2,array_B[18]=1,array_B[19]=1;
+	//	array_B[20]=8,array_B[21]=4,array_B[22]=1,array_B[23]=6;
+    
 		if(M_A.cols!=M_B.rows)
 		{
 			cout<<"Illegal matrix sizes: "<<M_A.cols<<" != "<<M_B.rows<<endl;
@@ -137,8 +163,8 @@
 		float* array_C=(float*)malloc(M_A.rows*M_B.cols*sizeof(float));//gpu result
 
 		//initialise it to zero
-		// for(int i=0; i<M_B.cols*M_A.rows;i++)
-			// array_C[i]=0;
+		for(int i=0; i<M_B.cols*M_A.rows;i++)
+			array_C[i]=0;
 		
 		float* array_D=(float*)malloc(M_A.rows*M_B.cols*sizeof(float));//cublas result
 		
@@ -245,7 +271,8 @@
 			mse=mse+(array_C[i]-array_D[i])*(array_C[i]-array_D[i]);
 			//float diff=array_C[i]-array_D[i];
 			//cout<<diff<<" ";//
-			// cout<<array_A[i]<<" "<<array_B[i]<<" "<<array_C[i]<<" "<<" "<<array_D[i]<<endl;
+			 //cout<<array_A[i]<<" "<<array_B[i]
+			//cout<<i<<" "<<array_C[i]<<" "<<" "<<array_D[i]<<endl;
 			}
 
 		cout<<endl<<"Mean square error = "<<mse<<endl;
