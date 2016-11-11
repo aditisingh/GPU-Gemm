@@ -52,7 +52,7 @@
 
 		float val=0;
 
-		for(int m=0; m<rows2/TILE_WIDTH;m++)
+		for(int m=0; m<1+(rows2-1)/TILE_WIDTH;m++)
 		{
 			S1[ty][tx]=array1[r + (m*TILE_WIDTH+tx)*rows1];
 			S2[ty][tx]=array2[(m*TILE_WIDTH+ty)+rows2*c];
@@ -240,12 +240,24 @@
 
 		float mse=0; //mean squared error
 
+		cout<<"Displaying A matrix"<<endl;
+
+		for(int i=0; i<M_A.rows*M_A.cols;i++)
+			cout<<array_A[i]<<" ";
+
+		cout<<endl<<"Displaying B Matrix:"<<endl;
+
+		for(int i=0; i<M_B.rows*M_B.cols;i++)
+			cout<<array_B[i]<<" ";
+
+		cout<<endl<<"Displaying results:"<<endl;
+
 		for(int i=0; i<M_A.rows*M_B.cols;i++)
 			{
 			mse=mse+(array_C[i]-array_D[i])*(array_C[i]-array_D[i]);
 			//float diff=array_C[i]-array_D[i];
 			//cout<<diff<<" ";//
-			// cout<<array_A[i]<<" "<<array_B[i]<<" "<<array_C[i]<<" "<<" "<<array_D[i]<<endl;
+			cout<<" "<<array_C[i]<<" "<<" "<<array_D[i]<<endl;
 			}
 
 		cout<<endl<<"Mean square error = "<<mse<<endl;
