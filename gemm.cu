@@ -12,6 +12,9 @@
 	#include <cuda_runtime_api.h>
 	#include <cublas_v2.h>
 
+	#define TILE_WIDTH 1
+	#define TILE_HEIGHT 1
+
 	using namespace std;
 
 	struct matrix{
@@ -33,8 +36,9 @@
 	{	
 		//each tile should fit the shared memory
 
-		const unsigned int TILE_WIDTH = 32;
-		const unsigned int TILE_HEIGHT= 32;
+		//const unsigned int TILE_WIDTH = 32;
+		//const unsigned int TILE_HEIGHT= 32;
+
 
 		__shared__ float S1[TILE_WIDTH][TILE_HEIGHT];
 		__shared__ float S2[TILE_HEIGHT][TILE_WIDTH];
@@ -48,21 +52,24 @@
 		size_t c=bx + tx;	//x-index of current thread
 		size_t r=by + ty;	//y-index of current thread
 
-		if(r>=rows1 || c>= cols2)	return;
-		// printf("%d, %d \n",blockDim.x,blockDim.y );
+		if(r>=rows1 || c>= cols2)	
+			return;
+		
 		size_t idx=c*cols2+r;
 
 
 		float val=0;
 
-		for(int m=0; m<rows2/TILE_WIDTH;m++)
+		for(int m=0; m<1+((rows2-1)/TILE_WIDTH);m++)
 		{
 			S1[ty][tx]=array1[r + (m*TILE_WIDTH+tx)*rows1];
 			
 			S2[ty][tx]=array2[(m*TILE_WIDTH+ty)+rows2*c];
-		//	printf("tx=%d, ty=%d, m=%d, S1=%f, S2=%f \n",tx,ty,m,S1[ty][tx],S2[ty][tx] );
-
 			__syncthreads();
+
+			printf("m=%d \n",m);
+			//printf("tx=%d, ty=%d, m=%d, S1=%f, S2=%f \n",tx,ty,m,S1[ty][tx],S2[ty][tx] );
+			//printf("tx=%d, ty=%d, r=%d,c=%d, idx=%d, S1=%f, S2=%f \n",tx,ty,r,c,idx,S1[ty][tx],S2[ty][tx] );
 
 			for(int i=0; i<TILE_WIDTH;i++)
 				val+=S1[ty][i]*S2[i][tx];
@@ -75,9 +82,12 @@
 			// }
 
 		}
-		printf("tx=%d, ty=%d, S1=%f, S2=%f \n",tx,ty,S1[ty][tx],S2[ty][tx] );
-
+		
+		//printf("tx=%d, ty=%d, r=%d,c=%d, idx=%d, S1=%f, S2=%f \n",tx,ty,r,c,idx,S1[ty][tx],S2[ty][tx] );
 		array3[idx]=val;
+		printf("tx=%d, ty=%d, r=%d,c=%d, idx=%d, S1=%f, S2=%f \n",tx,ty,r,c,idx,S1[ty][tx],S2[ty][tx] );
+		//printf("block_x=%d, block_y=%d, tx=%d, ty=%d, r=%d,c=%d, idx=%d, S1=%f, S2=%f \n",blockIdx.x, blockIdx.y,tx,ty,r,c,idx,S1[ty][tx],S2[ty][tx] );
+		//__syncthreads();
 
 	}
 
@@ -167,9 +177,9 @@
 	   	HANDLE_ERROR(cudaGetDeviceProperties(&prop, 0));	//using GPU0
 
 	   	//BLOCK AND GRID SIZE
-	    float thread_block=sqrt(prop.maxThreadsPerBlock);
-		dim3 DimGrid(ceil(M_B.cols/thread_block),ceil(M_A.rows/thread_block),1); //image saved as a 2D grid
-		dim3 DimBlock(thread_block,thread_block,1);
+	   	float thread_block=sqrt(prop.maxThreadsPerBlock);
+		dim3 DimGrid(ceil(M_B.cols/TILE_WIDTH),ceil(M_A.rows/TILE_HEIGHT),1); //image saved as a 2D grid
+		dim3 DimBlock(TILE_WIDTH,TILE_HEIGHT,1);//thread_block,thread_block,1);
 
 		size_t Sbytes = 2* DimBlock.x * DimBlock.y ;
 		
