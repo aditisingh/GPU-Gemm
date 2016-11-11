@@ -12,8 +12,8 @@
 	#include <cuda_runtime_api.h>
 	#include <cublas_v2.h>
 
-	#define TILE_WIDTH 1
-	#define TILE_HEIGHT 1
+	#define TILE_WIDTH 32
+	#define TILE_HEIGHT 32
 
 	using namespace std;
 
@@ -68,8 +68,8 @@
 			__syncthreads();
 
 			printf("m=%d \n",m);
-			//printf("tx=%d, ty=%d, m=%d, S1=%f, S2=%f \n",tx,ty,m,S1[ty][tx],S2[ty][tx] );
-			//printf("tx=%d, ty=%d, r=%d,c=%d, idx=%d, S1=%f, S2=%f \n",tx,ty,r,c,idx,S1[ty][tx],S2[ty][tx] );
+			printf("tx=%d, ty=%d, m=%d, S1=%f, S2=%f \n",tx,ty,m,S1[ty][tx],S2[ty][tx] );
+			printf("tx=%d, ty=%d, r=%d,c=%d, idx=%d, S1=%f, S2=%f \n",tx,ty,r,c,idx,S1[ty][tx],S2[ty][tx] );
 
 			for(int i=0; i<TILE_WIDTH;i++)
 				val+=S1[ty][i]*S2[i][tx];
