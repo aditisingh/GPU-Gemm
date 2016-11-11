@@ -48,21 +48,35 @@
 		size_t c=bx + tx;	//x-index of current thread
 		size_t r=by + ty;	//y-index of current thread
 
+		if(r>=rows1 || c>= cols2)	return;
+		// printf("%d, %d \n",blockDim.x,blockDim.y );
 		size_t idx=c*cols2+r;
+
 
 		float val=0;
 
-		for(int m=0; m<1+(rows2-1)/TILE_WIDTH;m++)
+		for(int m=0; m<rows2/TILE_WIDTH;m++)
 		{
 			S1[ty][tx]=array1[r + (m*TILE_WIDTH+tx)*rows1];
+			
 			S2[ty][tx]=array2[(m*TILE_WIDTH+ty)+rows2*c];
+		//	printf("tx=%d, ty=%d, m=%d, S1=%f, S2=%f \n",tx,ty,m,S1[ty][tx],S2[ty][tx] );
+
 			__syncthreads();
 
 			for(int i=0; i<TILE_WIDTH;i++)
 				val+=S1[ty][i]*S2[i][tx];
 			__syncthreads();
 
+			// for(int i=0; i<3;i++)
+			// {
+			// 	for(int j=0;j<3;j++)
+			// 		printf("%d \t %d \n",S1[i][j],S2[i][j]);
+			// }
+
 		}
+		printf("tx=%d, ty=%d, S1=%f, S2=%f \n",tx,ty,S1[ty][tx],S2[ty][tx] );
+
 		array3[idx]=val;
 
 	}
@@ -162,7 +176,7 @@
 
 		cudaDeviceProp props;
 		cudaGetDeviceProperties(&props, 0);
-		cout<<Sbytes<<" "<<props.sharedMemPerBlock<<endl;
+		//cout<<Sbytes<<" "<<props.sharedMemPerBlock<<endl;
 		if(props.sharedMemPerBlock < Sbytes){
 			std::cout<<"ERROR: insufficient shared memory"<<std::endl;
 			exit(1);
@@ -246,7 +260,7 @@
 			cout<<array_A[i]<<" ";
 
 		cout<<endl<<"Displaying B Matrix:"<<endl;
-
+// 
 		for(int i=0; i<M_B.rows*M_B.cols;i++)
 			cout<<array_B[i]<<" ";
 
