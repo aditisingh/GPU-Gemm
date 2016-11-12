@@ -40,28 +40,36 @@
 		__shared__ float S1[TILE_WIDTH][TILE_HEIGHT];
 		__shared__ float S2[TILE_HEIGHT][TILE_WIDTH];
 
-		size_t tx=threadIdx.x;
-		size_t ty=threadIdx.y;
+		unsigned int tx=threadIdx.x;
+		unsigned int ty=threadIdx.y;
 
-		const unsigned int bx=blockIdx.x*blockDim.x;   //upper left corner x index
-		const unsigned int by=blockIdx.y*blockDim.y;	//upper left corner y index
+		unsigned int c=blockIdx.x*blockDim.x + threadIdx.x;	//x-index of current thread
+		unsigned int r=blockIdx.y*blockDim.y + threadIdx.y;	//y-index of current thread
 
-		size_t c=bx + tx;	//x-index of current thread
-		size_t r=by + ty;	//y-index of current thread
+		unsigned int idx=c*cols2+r;
+		// printf("tx=%d,%d, ty=%d,%d ,c=%d, r=%d, idx=%d \n",tx,threadIdx.x,ty,threadIdx.y,c,r,idx );
+    	// printf("Hello from block %d, thread %d,%d\n", blockIdx.x, threadIdx.x,threadIdx.y);
 
 		float val=0;
 
 		for(int m=0; m<1+((rows2-1)/TILE_WIDTH);m++)
 		{
-			if (r < rows1 && m*TILE_WIDTH+tx < rows1)
+			if (r < rows1 && m*TILE_WIDTH+tx < rows2)
 				S1[ty][tx]=array1[r + (m*TILE_WIDTH+tx)*rows1];
 			else
-				S1[ty][tx]=0;
-       		
+				{
+					S1[ty][tx]=0;
+					// printf("S1 is zero\n");
+				}
+       		__syncthreads();
+			
        		if(c<cols2 && m*TILE_WIDTH+ty < rows2)
       			S2[ty][tx]=array2[(m*TILE_WIDTH+ty)+rows2*c];
       		else 
+      			{
       			S2[ty][tx]=0;
+      			// printf("S2 is zero\n");
+      		}
 			__syncthreads();
 			
 
@@ -69,13 +77,19 @@
 				val+=S1[ty][i]*S2[i][tx];
 			__syncthreads();
 
+			float S1_var=S1[ty][tx];
+			float S2_var=S2[ty][tx];
+
+			// if(r<rows1 && c<cols2)
+			// printf("r=%d, c=%d, S1=%f, S2=%f \n",r ,c ,S1_var, S2_var );
+
+
 		}
 		
 		if(r < rows1 && c< cols2)	
-			array3[c*cols2+r]=val;
-
-		// printf("block_x=%d, block_y=%d, tx=%d, ty=%d, r=%d,c=%d, idx=%d, S1=%f, S2=%f \n",blockIdx.x, blockIdx.y,tx,ty,r,c,c*cols2+r,S1[ty][tx],S2[ty][tx] );
-
+		{	array3[idx]=val;
+			// printf("block_x=%d, block_y=%d, tx=%d, ty=%d, r=%d,c=%d, idx=%d, S1=%f, S2=%f \n",blockIdx.x, blockIdx.y,tx,ty,r,c,c*cols2+r,S1[ty][tx],S2[ty][tx] );
+		}
 
 	}
 
@@ -168,7 +182,7 @@
 	   	float thread_block=sqrt(prop.maxThreadsPerBlock);
 		dim3 DimGrid(ceil(M_B.cols/thread_block),ceil(M_A.rows/thread_block),1); //image saved as a 2D grid
 		dim3 DimBlock(thread_block,thread_block,1);
-
+		cout<<"thread sizes"<<DimBlock.x<<" "<<DimBlock.y<<endl;
 		size_t Sbytes = 2* DimBlock.x * DimBlock.y ;
 		
 
@@ -251,7 +265,7 @@
 	    HANDLE_ERROR(cudaMemcpy(array_D, array_D_gpu, M_A.rows*M_B.cols*sizeof(float), cudaMemcpyDeviceToHost));//copy kernel1 host to device
 
 		float mse=0; //mean squared error
-
+/*
 		cout<<"Displaying A matrix"<<endl;
 
 		for(int i=0; i<M_A.rows*M_A.cols;i++)
@@ -263,13 +277,13 @@
 			cout<<array_B[i]<<" ";
 
 		cout<<endl<<"Displaying results:"<<endl;
-
+*/
 		for(int i=0; i<M_A.rows*M_B.cols;i++)
 			{
 			mse=mse+(array_C[i]-array_D[i])*(array_C[i]-array_D[i]);
 			//float diff=array_C[i]-array_D[i];
 			//cout<<diff<<" ";//
-			cout<<" "<<array_C[i]<<" "<<" "<<array_D[i]<<endl;
+		//	cout<<" "<<array_C[i]<<" "<<" "<<array_D[i]<<endl;
 			}
 
 		cout<<endl<<"Mean square error = "<<mse<<endl;
