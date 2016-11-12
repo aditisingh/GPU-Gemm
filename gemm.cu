@@ -37,10 +37,6 @@
 	{	
 		//each tile should fit the shared memory
 
-		//const unsigned int TILE_WIDTH = 32;
-		//const unsigned int TILE_HEIGHT= 32;
-	
-
 		__shared__ float S1[TILE_WIDTH][TILE_HEIGHT];
 		__shared__ float S2[TILE_HEIGHT][TILE_WIDTH];
 
@@ -53,18 +49,11 @@
 		size_t c=bx + tx;	//x-index of current thread
 		size_t r=by + ty;	//y-index of current thread
 
-
-		size_t idx=c*cols2+r;
-
-		//if(r>=rows1 || c>= cols2)	
-		// if(idx>=cols2*rows1)
-			//return;
-
 		float val=0;
 
 		for(int m=0; m<1+((rows2-1)/TILE_WIDTH);m++)
 		{
-			if (r < rows1 && m*TILE_WIDTH+tx < rows2)
+			if (r < rows1 && m*TILE_WIDTH+tx < rows1)
 				S1[ty][tx]=array1[r + (m*TILE_WIDTH+tx)*rows1];
 			else
 				S1[ty][tx]=0;
@@ -74,30 +63,19 @@
       		else 
       			S2[ty][tx]=0;
 			__syncthreads();
-			/*
-			printf("m=%d \n",m);
-			printf("tx=%d, ty=%d, m=%d, S1=%f, S2=%f \n",tx,ty,m,S1[ty][tx],S2[ty][tx] );
-			printf("tx=%d, ty=%d, r=%d,c=%d, idx=%d, S1=%f, S2=%f \n",tx,ty,r,c,idx,S1[ty][tx],S2[ty][tx] );
-			__syncthreads();*/
+			
 
 			for(int i=0; i<TILE_WIDTH;i++)
 				val+=S1[ty][i]*S2[i][tx];
 			__syncthreads();
 
-			// for(int i=0; i<3;i++)
-			// {
-			// 	for(int j=0;j<3;j++)
-			// 		printf("%d \t %d \n",S1[i][j],S2[i][j]);
-			// }
-
 		}
 		
-		//printf("tx=%d, ty=%d, r=%d,c=%d, idx=%d, S1=%f, S2=%f \n",tx,ty,r,c,idx,S1[ty][tx],S2[ty][tx] );
 		if(r < rows1 && c< cols2)	
-			array3[idx]=val;
-		//printf("tx=%d, ty=%d, r=%d,c=%d, idx=%d, S1=%f, S2=%f \n",tx,ty,r,c,idx,S1[ty][tx],S2[ty][tx] );
-		//printf("block_x=%d, block_y=%d, tx=%d, ty=%d, r=%d,c=%d, idx=%d, S1=%f, S2=%f \n",blockIdx.x, blockIdx.y,tx,ty,r,c,idx,S1[ty][tx],S2[ty][tx] );
-		//__syncthreads();
+			array3[c*cols2+r]=val;
+
+		// printf("block_x=%d, block_y=%d, tx=%d, ty=%d, r=%d,c=%d, idx=%d, S1=%f, S2=%f \n",blockIdx.x, blockIdx.y,tx,ty,r,c,c*cols2+r,S1[ty][tx],S2[ty][tx] );
+
 
 	}
 
@@ -273,7 +251,7 @@
 	    HANDLE_ERROR(cudaMemcpy(array_D, array_D_gpu, M_A.rows*M_B.cols*sizeof(float), cudaMemcpyDeviceToHost));//copy kernel1 host to device
 
 		float mse=0; //mean squared error
-/*
+
 		cout<<"Displaying A matrix"<<endl;
 
 		for(int i=0; i<M_A.rows*M_A.cols;i++)
@@ -285,13 +263,13 @@
 			cout<<array_B[i]<<" ";
 
 		cout<<endl<<"Displaying results:"<<endl;
-*/
+
 		for(int i=0; i<M_A.rows*M_B.cols;i++)
 			{
 			mse=mse+(array_C[i]-array_D[i])*(array_C[i]-array_D[i]);
 			//float diff=array_C[i]-array_D[i];
 			//cout<<diff<<" ";//
-			// cout<<" "<<array_C[i]<<" "<<" "<<array_D[i]<<endl;
+			cout<<" "<<array_C[i]<<" "<<" "<<array_D[i]<<endl;
 			}
 
 		cout<<endl<<"Mean square error = "<<mse<<endl;
