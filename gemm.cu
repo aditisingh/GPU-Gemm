@@ -57,19 +57,22 @@
 		size_t idx=c*cols2+r;
 
 		//if(r>=rows1 || c>= cols2)	
-		if(idx>=cols2*rows1)
-			return;
-		
-		
-
+		// if(idx>=cols2*rows1)
+			//return;
 
 		float val=0;
 
 		for(int m=0; m<1+((rows2-1)/TILE_WIDTH);m++)
 		{
-			S1[ty][tx]=array1[r + (m*TILE_WIDTH+tx)*rows1];
-			
-			S2[ty][tx]=array2[(m*TILE_WIDTH+ty)+rows2*c];
+			if (r < rows1 && m*TILE_WIDTH+tx < rows2)
+				S1[ty][tx]=array1[r + (m*TILE_WIDTH+tx)*rows1];
+			else
+				S1[ty][tx]=0;
+       		
+       		if(c<cols2 && m*TILE_WIDTH+ty < rows2)
+      			S2[ty][tx]=array2[(m*TILE_WIDTH+ty)+rows2*c];
+      		else 
+      			S2[ty][tx]=0;
 			__syncthreads();
 			/*
 			printf("m=%d \n",m);
@@ -90,7 +93,8 @@
 		}
 		
 		//printf("tx=%d, ty=%d, r=%d,c=%d, idx=%d, S1=%f, S2=%f \n",tx,ty,r,c,idx,S1[ty][tx],S2[ty][tx] );
-		array3[idx]=val;
+		if(r < rows1 && c< cols2)	
+			array3[idx]=val;
 		//printf("tx=%d, ty=%d, r=%d,c=%d, idx=%d, S1=%f, S2=%f \n",tx,ty,r,c,idx,S1[ty][tx],S2[ty][tx] );
 		//printf("block_x=%d, block_y=%d, tx=%d, ty=%d, r=%d,c=%d, idx=%d, S1=%f, S2=%f \n",blockIdx.x, blockIdx.y,tx,ty,r,c,idx,S1[ty][tx],S2[ty][tx] );
 		//__syncthreads();
@@ -269,7 +273,7 @@
 	    HANDLE_ERROR(cudaMemcpy(array_D, array_D_gpu, M_A.rows*M_B.cols*sizeof(float), cudaMemcpyDeviceToHost));//copy kernel1 host to device
 
 		float mse=0; //mean squared error
-
+/*
 		cout<<"Displaying A matrix"<<endl;
 
 		for(int i=0; i<M_A.rows*M_A.cols;i++)
@@ -281,13 +285,13 @@
 			cout<<array_B[i]<<" ";
 
 		cout<<endl<<"Displaying results:"<<endl;
-
+*/
 		for(int i=0; i<M_A.rows*M_B.cols;i++)
 			{
 			mse=mse+(array_C[i]-array_D[i])*(array_C[i]-array_D[i]);
 			//float diff=array_C[i]-array_D[i];
 			//cout<<diff<<" ";//
-			cout<<" "<<array_C[i]<<" "<<" "<<array_D[i]<<endl;
+			// cout<<" "<<array_C[i]<<" "<<" "<<array_D[i]<<endl;
 			}
 
 		cout<<endl<<"Mean square error = "<<mse<<endl;
