@@ -32,7 +32,6 @@
 
 	#define HANDLE_ERROR( err ) (HandleError( err, __FILE__, __LINE__ ))
 
-
 	__global__ void matrix_mult(float* array1, unsigned int rows1, unsigned int cols1, float* array2, unsigned int rows2, unsigned int cols2, float* array3)
 	{	
 		//each tile should fit the shared memory
@@ -46,7 +45,7 @@
 		unsigned int c=blockIdx.x*blockDim.x + threadIdx.x;	//x-index of current thread
 		unsigned int r=blockIdx.y*blockDim.y + threadIdx.y;	//y-index of current thread
 
-		unsigned int idx=c*cols2+r;
+		unsigned int idx=c*rows1+r;
 		// printf("tx=%d,%d, ty=%d,%d ,c=%d, r=%d, idx=%d \n",tx,threadIdx.x,ty,threadIdx.y,c,r,idx );
     	// printf("Hello from block %d, thread %d,%d\n", blockIdx.x, threadIdx.x,threadIdx.y);
 
@@ -81,13 +80,14 @@
 			float S2_var=S2[ty][tx];
 
 			// if(r<rows1 && c<cols2)
-			// printf("r=%d, c=%d, S1=%f, S2=%f \n",r ,c ,S1_var, S2_var );
+				// printf("r=%d, c=%d, S1=%f, S2=%f \n",r ,c ,S1_var, S2_var );
 
 
 		}
 		
 		if(r < rows1 && c< cols2)	
 		{	array3[idx]=val;
+			// printf("r=%d, c=%d, idx=%d, val= %f\n",r,c,idx, val );
 			// printf("block_x=%d, block_y=%d, tx=%d, ty=%d, r=%d,c=%d, idx=%d, S1=%f, S2=%f \n",blockIdx.x, blockIdx.y,tx,ty,r,c,c*cols2+r,S1[ty][tx],S2[ty][tx] );
 		}
 
@@ -265,25 +265,25 @@
 	    HANDLE_ERROR(cudaMemcpy(array_D, array_D_gpu, M_A.rows*M_B.cols*sizeof(float), cudaMemcpyDeviceToHost));//copy kernel1 host to device
 
 		float mse=0; //mean squared error
-/*
-		cout<<"Displaying A matrix"<<endl;
 
-		for(int i=0; i<M_A.rows*M_A.cols;i++)
-			cout<<array_A[i]<<" ";
+// 		cout<<"Displaying A matrix"<<endl;
 
-		cout<<endl<<"Displaying B Matrix:"<<endl;
-// 
-		for(int i=0; i<M_B.rows*M_B.cols;i++)
-			cout<<array_B[i]<<" ";
+// 		for(int i=0; i<M_A.rows*M_A.cols;i++)
+// 			cout<<array_A[i]<<" ";
 
-		cout<<endl<<"Displaying results:"<<endl;
-*/
+// 		cout<<endl<<"Displaying B Matrix:"<<endl;
+// // 
+// 		for(int i=0; i<M_B.rows*M_B.cols;i++)
+// 			cout<<array_B[i]<<" ";
+
+// 		cout<<endl<<"Displaying results:"<<endl;
+
 		for(int i=0; i<M_A.rows*M_B.cols;i++)
 			{
 			mse=mse+(array_C[i]-array_D[i])*(array_C[i]-array_D[i]);
 			//float diff=array_C[i]-array_D[i];
 			//cout<<diff<<" ";//
-		//	cout<<" "<<array_C[i]<<" "<<" "<<array_D[i]<<endl;
+			// cout<<" "<<array_C[i]<<" "<<" "<<array_D[i]<<endl;
 			}
 
 		cout<<endl<<"Mean square error = "<<mse<<endl;
