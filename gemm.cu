@@ -1,3 +1,4 @@
+	//header files included
 	#include <fstream>
 	#include <iostream>
 	#include <stdio.h>
@@ -12,58 +13,63 @@
 	#include <cuda_runtime_api.h>
 	#include <cublas_v2.h>
 
+	//declaring the tile width and height 
+	//for tile based matrix multiplication
 	#define TILE_WIDTH 32
 	#define TILE_HEIGHT 32
 	
-
+	//Namespace for std
 	using namespace std;
 
+	//structure declaration for storing rows and columns for a matrix
 	struct matrix{
-		unsigned int rows;
-		unsigned int cols;
+		unsigned int rows;	//storing rows of a matrix
+		unsigned int cols;	//storing columns of a matrix
 	};
 
+	//handlerror declaration : to display file and line numbers of erroneous lines
 	static void HandleError( cudaError_t err, const char *file, int line ) {
 		if (err != cudaSuccess) {
 			cout<<cudaGetErrorString(err)<<" in "<< file <<" at line "<< line<<endl;
 		}
 	}
 
-
+	//handle error alias name declaration
 	#define HANDLE_ERROR( err ) (HandleError( err, __FILE__, __LINE__ ))
 
+	//global kernal for matrix multiplication, takes in input matrices and sizes, and multiplies them
+	//matrix multiplication is being done tile by tile
 	__global__ void matrix_mult(float* array1, unsigned int rows1, unsigned int cols1, float* array2, unsigned int rows2, unsigned int cols2, float* array3)
 	{	
-		//each tile should fit the shared memory
+		//shared memory takes one tile at a time
+		__shared__ float S1[TILE_WIDTH][TILE_HEIGHT];	//to store tiles for array 1
+		__shared__ float S2[TILE_HEIGHT][TILE_WIDTH];	//to store tiles for array 2
 
-		__shared__ float S1[TILE_WIDTH][TILE_HEIGHT];
-		__shared__ float S2[TILE_HEIGHT][TILE_WIDTH];
-
+		//threads x and y index for the current block
 		unsigned int tx=threadIdx.x;
 		unsigned int ty=threadIdx.y;
 
-		unsigned int c=blockIdx.x*blockDim.x + threadIdx.x;	//x-index of current thread
-		unsigned int r=blockIdx.y*blockDim.y + threadIdx.y;	//y-index of current thread
+		unsigned int c=blockIdx.x*blockDim.x + threadIdx.x;	//row value using x-index of current thread
+		unsigned int r=blockIdx.y*blockDim.y + threadIdx.y;	//column value using y-index of current thread
 
-		unsigned int idx=c*rows1+r;
-		// printf("tx=%d,%d, ty=%d,%d ,c=%d, r=%d, idx=%d \n",tx,threadIdx.x,ty,threadIdx.y,c,r,idx );
-    	// printf("Hello from block %d, thread %d,%d\n", blockIdx.x, threadIdx.x,threadIdx.y);
+		unsigned int idx=c*rows1+r;	//column major index, using row and column value
+		
+		float val=0;//register to multiplication result
 
-		float val=0;
-
-		for(int m=0; m<1+((rows2-1)/TILE_WIDTH);m++)
+		for(int m=0; m<1+((rows2-1)/TILE_WIDTH);m++)	//going over all tiles one by one, with each m
 		{
-			if (r < rows1 && m*TILE_WIDTH+tx < rows2)
-				S1[ty][tx]=array1[r + (m*TILE_WIDTH+tx)*rows1];
-			else
-				{
-					S1[ty][tx]=0;
-					// printf("S1 is zero\n");
-				}
-       		__syncthreads();
+
+			int var1=m*TILE_WIDTH+tx ;		//x thread value for current tile
+			int var2=m*TILE_WIDTH+ty ;		//y thread value for current tile
 			
-       		if(c<cols2 && m*TILE_WIDTH+ty < rows2)
-      			S2[ty][tx]=array2[(m*TILE_WIDTH+ty)+rows2*c];
+			if (r < rows1 && var1 < rows2)	//if the value is associated to a valid matrix coordinate then store it to shared, else store zero
+				S1[ty][tx]=array1[r + var1*rows1];	//storing a "valid" value from array to shared memory
+			else
+					S1[ty][tx]=0;					//storing zero, since there is no valid value
+       		__syncthreads();						//syncing all threads once shared memory S1 is stored
+			
+       		if(c<cols2 && var2< rows2)
+      			S2[ty][tx]=array2[var2+rows2*c];
       		else 
       			{
       			S2[ty][tx]=0;
@@ -76,21 +82,11 @@
 				val+=S1[ty][i]*S2[i][tx];
 			__syncthreads();
 
-			float S1_var=S1[ty][tx];
-			float S2_var=S2[ty][tx];
-
-			// if(r<rows1 && c<cols2)
-				// printf("r=%d, c=%d, S1=%f, S2=%f \n",r ,c ,S1_var, S2_var );
-
-
 		}
 		
 		if(r < rows1 && c< cols2)	
-		{	array3[idx]=val;
-			// printf("r=%d, c=%d, idx=%d, val= %f\n",r,c,idx, val );
-			// printf("block_x=%d, block_y=%d, tx=%d, ty=%d, r=%d,c=%d, idx=%d, S1=%f, S2=%f \n",blockIdx.x, blockIdx.y,tx,ty,r,c,c*cols2+r,S1[ty][tx],S2[ty][tx] );
-		}
-
+			array3[idx]=val;
+			
 	}
 
 	int main(int argc, char* argv[])
@@ -113,10 +109,7 @@
 		//memory allocation
 		matrix M_A;	
 		infile_A.read(reinterpret_cast<char*>(&M_A),2*sizeof(unsigned int));
-		//cout<<M_A.rows<<M_A.cols;
 		
-		//matrix M_A,M_B;
-		// M_A.rows=3, M_A.cols=3;
 
 		float* array_A=(float*)malloc(M_A.rows*M_A.cols*sizeof(float));	//column major
 		infile_A.read(reinterpret_cast<char*>(array_A),M_A.rows*M_A.cols*sizeof(float));
@@ -134,25 +127,11 @@
 		matrix M_B;
 		infile_B.read(reinterpret_cast<char*>(&M_B),2*sizeof(unsigned int));
 
-		// M_B.rows=3, M_B.cols=3;
-
 		float* array_B=(float*)malloc(M_B.rows*M_B.cols*sizeof(float));	//column major
-
-		// array_A[0]=1, array_A[3]=2, array_A[6]=1;
-		// array_A[1]=2, array_A[4]=3, array_A[7]=4;
-	 //    array_A[2]=1, array_A[5]=-1, array_A[8]=0;
-
-		// array_B[0]=0, array_B[3]=1, array_B[6]=0;
-		// array_B[1]=1, array_B[4]=2, array_B[7]=3;
-		// array_B[2]=-1, array_B[5]=2, array_B[8]=-1;
 
 		infile_B.read(reinterpret_cast<char*>(array_B),M_B.rows*M_B.cols*sizeof(float));
 		
 		infile_B.close();
-
-		// array_B[0]=0, array_B[3]=1, array_B[6]=0;
-		// array_B[1]=1, array_B[4]=2, array_B[7]=3;
-		// array_B[2]=-1, array_B[5]=2, array_B[8]=-1;
 
 		if(M_A.cols!=M_B.rows)
 		{
@@ -161,10 +140,6 @@
 		}
 
 		float* array_C=(float*)malloc(M_A.rows*M_B.cols*sizeof(float));//gpu result
-
-		//initialise it to zero
-		// for(int i=0; i<M_B.cols*M_A.rows;i++)
-			// array_C[i]=0;
 		
 		float* array_D=(float*)malloc(M_A.rows*M_B.cols*sizeof(float));//cublas result
 		
@@ -182,13 +157,13 @@
 	   	float thread_block=sqrt(prop.maxThreadsPerBlock);
 		dim3 DimGrid(ceil(M_B.cols/thread_block),ceil(M_A.rows/thread_block),1); //image saved as a 2D grid
 		dim3 DimBlock(thread_block,thread_block,1);
-		cout<<"thread sizes"<<DimBlock.x<<" "<<DimBlock.y<<endl;
+
 		size_t Sbytes = 2* DimBlock.x * DimBlock.y ;
 		
 
 		cudaDeviceProp props;
 		cudaGetDeviceProperties(&props, 0);
-		//cout<<Sbytes<<" "<<props.sharedMemPerBlock<<endl;
+
 		if(props.sharedMemPerBlock < Sbytes){
 			std::cout<<"ERROR: insufficient shared memory"<<std::endl;
 			exit(1);
@@ -264,28 +239,11 @@
 	    
 	    HANDLE_ERROR(cudaMemcpy(array_D, array_D_gpu, M_A.rows*M_B.cols*sizeof(float), cudaMemcpyDeviceToHost));//copy kernel1 host to device
 
-		float mse=0; //mean squared error
-
-// 		cout<<"Displaying A matrix"<<endl;
-
-// 		for(int i=0; i<M_A.rows*M_A.cols;i++)
-// 			cout<<array_A[i]<<" ";
-
-// 		cout<<endl<<"Displaying B Matrix:"<<endl;
-// // 
-// 		for(int i=0; i<M_B.rows*M_B.cols;i++)
-// 			cout<<array_B[i]<<" ";
-
-// 		cout<<endl<<"Displaying results:"<<endl;
+		float mse=0; //mean squared error;
 
 		for(int i=0; i<M_A.rows*M_B.cols;i++)
-			{
 			mse=mse+(array_C[i]-array_D[i])*(array_C[i]-array_D[i]);
-			//float diff=array_C[i]-array_D[i];
-			//cout<<diff<<" ";//
-			// cout<<" "<<array_C[i]<<" "<<" "<<array_D[i]<<endl;
-			}
-
+			
 		cout<<endl<<"Mean square error = "<<mse<<endl;
 
 		//SAVING THE OUTPUT MATRIX
@@ -297,10 +255,10 @@
 
 		time_t saved = time(NULL);
 
-		//cout<<"Matrix reading     :"<<double(reading_end - reading_start)<<" secs"<<endl;
-		//cout<<"Memory Transfers   :"<<double(memory_transfers - reading_end)<<" secs"<<endl;
-		//cout<<"Multiplication done:"<<double(mult_end - memory_transfers)<<" secs"<<endl;
-		//cout<<"Matrix saving      :"<<double(saved - mult_end)<<" secs"<<endl;
+		// cout<<"Matrix reading     :"<<double(reading_end - reading_start)<<" secs"<<endl;
+		// cout<<"Memory Transfers   :"<<double(memory_transfers - reading_end)<<" secs"<<endl;
+		// cout<<"Multiplication done:"<<double(mult_end - memory_transfers)<<" secs"<<endl;
+		// cout<<"Matrix saving      :"<<double(saved - mult_end)<<" secs"<<endl;
 
 		return 0;
 	}
