@@ -200,7 +200,7 @@
 		float milliseconds1 = 0, milliseconds2 = 0;//storing the execution time in milliseconds
 		
 		cudaEventElapsedTime(&milliseconds1, start1, stop1);//get the time in milliseconds
-		cout<<"time taken by GPU = "<<milliseconds1<<" ms"<<endl;//printing time taken by GPU
+		cout<<"Time taken by GPU = "<<milliseconds1<<" ms"<<endl;//printing time taken by GPU
 
 		//copy to CPU MEMORY
 		HANDLE_ERROR(cudaMemcpy(array_C, array_C_gpu, M_A.rows*M_B.cols*sizeof(float), cudaMemcpyDeviceToHost));//copying result of multiplication from gpu to cpu
@@ -214,7 +214,7 @@
 		float beta = 0.0;
 	    
 		//cublas time measurement
-	    	cudaEvent_t start2, stop2;
+	    cudaEvent_t start2, stop2;
 	 	
 	 	cudaEventCreate(&start2);
 		cudaEventCreate(&stop2);
@@ -227,7 +227,7 @@
 		cudaEventSynchronize(stop2);
 
 		cudaEventElapsedTime(&milliseconds2, start2, stop2);//get the time in milliseconds
-		cout<<"time taken by CUBLAS= "<<milliseconds2<<" ms"<<endl;//printing time taken by CUBLAS
+		cout<<"Time taken by CUBLAS= "<<milliseconds2<<" ms"<<endl;//printing time taken by CUBLAS
 		
 		//copy to CPU MEMORY
 	    
